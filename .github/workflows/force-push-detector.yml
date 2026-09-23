@@ -1,0 +1,54 @@
+name: Force-push detector
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  detect-force-push:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.forced == true }}
+    steps:
+      - name: Log the event
+        run: |
+          echo "::error::Force-push detected on ${{ github.ref }} by ${{ github.actor }} (before: ${{ github.event.before }}, after: ${{ github.sha }})"
+
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_ALERTS_SLACK_WEBHOOK }}
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "$(cat <<EOF
+          {
+            "text": ":rotating_light: Force-push detected",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":rotating_light: *Force-push detected*\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Actor:* ${{ github.actor }}\n*Before:* \`${{ github.event.before }}\`\n*After:* \`${{ github.sha }}\`\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|View commit>"
+                }
+              }
+            ]
+          }
+          EOF
+          )" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Create an issue if Slack isn't configured
+        if: ${{ env.SLACK_WEBHOOK_URL == '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Force-push detected on ${{ github.ref_name }}" \
+            --body "**Actor:** ${{ github.actor }}
+          **Branch:** ${{ github.ref_name }}
+          **Before:** ${{ github.event.before }}
+          **After:** ${{ github.sha }}
+          **Commit:** https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
+          This is an automated alert from the org-wide force-push detector. The branch protection ruleset should normally block force-pushes outright — if you're seeing this, either the push bypassed the ruleset or this repo isn't covered by it." \
+            --label "security"

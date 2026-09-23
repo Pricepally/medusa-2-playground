@@ -5,6 +5,10 @@ on:
     branches:
       - '**'
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   detect-force-push:
     runs-on: ubuntu-latest

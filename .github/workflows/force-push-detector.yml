@@ -55,4 +55,4 @@ jobs:
           **Commit:** https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
           This is an automated alert from the org-wide force-push detector. The branch protection ruleset should normally block force-pushes outright — if you're seeing this, either the push bypassed the ruleset or this repo isn't covered by it." \
-            --label "security"
+            --repo "${{ github.repository }}"
